@@ -1,0 +1,11 @@
+[tasks.build]
+linux_alias = "build_linux"
+windows_alias = "build_windows"
+
+[tasks.build_linux]
+command = "cargo"
+args = ["build", "--target", "i686-unknown-linux-gnu"]
+
+[tasks.build_windows]
+command = "cargo"
+args = ["build", "--target", "i686-pc-windows-msvc"]

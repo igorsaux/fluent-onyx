@@ -1,8 +1,6 @@
 use std::{cell::RefCell, panic};
 
-#[cfg(debug_assertions)]
 use backtrace::Backtrace;
-#[cfg(debug_assertions)]
 use flexi_logger::{FileSpec, Logger, WriteMode};
 
 use byond::byond;
@@ -51,10 +49,9 @@ byond!(get: json; {
     }
 });
 
-fn init_inner(localization_folder: &str, fallbacks: &str) -> Option<String> {
-    #[cfg(debug_assertions)]
+fn init_inner(localization_folder: &str, fallbacks: &str) {
     let _logger = Logger::try_with_str("trace, fluent-onyx=trace")
-        .ok()?
+        .unwrap()
         .log_to_file(
             FileSpec::default()
                 .directory("data/logs/")
@@ -62,21 +59,18 @@ fn init_inner(localization_folder: &str, fallbacks: &str) -> Option<String> {
         )
         .write_mode(WriteMode::BufferAndFlush)
         .start()
-        .ok()?;
+        .unwrap();
 
-    #[cfg(debug_assertions)]
     panic::set_hook(Box::new(|_| {
         let bt = Backtrace::new();
 
         error!("{bt:?}")
     }));
 
-    info!("Initialized");
-
     WRAPPER.with(|wrapper| {
         let mut wrapper = wrapper.borrow_mut();
 
-        let fallbacks = serde_json::from_str(fallbacks).ok()?;
+        let fallbacks = serde_json::from_str(fallbacks).unwrap();
 
         info!("Fallbacks: {fallbacks:#?}");
 
@@ -84,11 +78,14 @@ fn init_inner(localization_folder: &str, fallbacks: &str) -> Option<String> {
 
         let bundles = wrapper.bundles_mut();
 
-        let entries = std::fs::read_dir(localization_folder).ok()?;
+        let entries = std::fs::read_dir(localization_folder).unwrap();
 
         for entry in entries {
-            let entry = entry.ok()?;
-            let bundle = LocalizationResource::from_dir_entry(&entry)?;
+            let entry = entry.unwrap();
+            let bundle = match LocalizationResource::from_dir_entry(&entry) {
+                None => continue,
+                Some(v) => v,
+            };
 
             info!(
                 "Loaded bundle: [{}]: \"{}\"",
@@ -97,20 +94,24 @@ fn init_inner(localization_folder: &str, fallbacks: &str) -> Option<String> {
             );
 
             let code = bundle.code().to_owned();
-            let mut bundle: FluentBundle<FluentResource> = bundle.try_into().ok()?;
+            let mut bundle: FluentBundle<FluentResource> = bundle.try_into().unwrap();
 
             bundle.set_use_isolating(false);
 
             bundles.insert(code, bundle);
         }
 
-        Some("".to_string())
+        info!("Initialized");
     })
 }
 
 byond!(init: localization_folder, fallbacks; {
-    match init_inner(localization_folder, fallbacks) {
-        Some(v) => v,
-        None => ERROR_MESSAGE.into()
+    let got_error = panic::catch_unwind(|| {
+        init_inner(localization_folder, fallbacks)
+    });
+
+    match got_error {
+        Ok(()) => "".to_string(),
+        Err(_) => "Something is going wrong. Check logs for information.".to_string()
     }
 });

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap, panic};
+use std::{cell::RefCell, panic};
 
 #[cfg(debug_assertions)]
 use backtrace::Backtrace;
@@ -7,27 +7,29 @@ use flexi_logger::{FileSpec, Logger, WriteMode};
 
 use byond::byond;
 use fluent::{FluentBundle, FluentResource};
+use localization_bundle::LocalizationBundles;
 use localization_resource::LocalizationResource;
 use localizeable_data::LocalizeableData;
 use log::{error, info};
 
+mod localization_bundle;
 mod localization_resource;
 mod localizeable_data;
 
 const ERROR_MESSAGE: &str = "NO TRANSLATION";
 
 thread_local! {
-    pub static FLUENT_BUNDLES: RefCell<BTreeMap<String, FluentBundle<FluentResource>>> = RefCell::new(BTreeMap::new());
+    pub static WRAPPER: RefCell<LocalizationBundles> = RefCell::new(LocalizationBundles::new());
 }
 
 fn get_inner(json: &str) -> Option<String> {
     info!("fn get: {json:#?}");
 
-    FLUENT_BUNDLES.with(|bundles| {
-        let bundles = bundles.borrow();
+    WRAPPER.with(|wrapper| {
+        let wrapper = wrapper.borrow();
 
         let parsed = LocalizeableData::from_str(json).ok()?;
-        let bundle = bundles.get(&parsed.code)?;
+        let bundle = wrapper.resolve_bundle(&parsed.code)?;
         let message = bundle.get_message(&parsed.id)?;
         let value = message.value()?;
 
@@ -49,7 +51,7 @@ byond!(get: json; {
     }
 });
 
-fn init_inner(localization_folder: &str) -> Option<String> {
+fn init_inner(localization_folder: &str, fallbacks: &str) -> Option<String> {
     #[cfg(debug_assertions)]
     let _logger = Logger::try_with_str("trace, fluent-onyx=trace")
         .ok()?
@@ -71,8 +73,16 @@ fn init_inner(localization_folder: &str) -> Option<String> {
 
     info!("Initialized");
 
-    FLUENT_BUNDLES.with(|bundles| {
-        let mut bundles = bundles.borrow_mut();
+    WRAPPER.with(|wrapper| {
+        let mut wrapper = wrapper.borrow_mut();
+
+        let fallbacks = serde_json::from_str(fallbacks).ok()?;
+
+        info!("Fallbacks: {fallbacks:#?}");
+
+        wrapper.set_fallbacks(fallbacks);
+
+        let bundles = wrapper.bundles_mut();
 
         let entries = std::fs::read_dir(localization_folder).ok()?;
 
@@ -98,8 +108,8 @@ fn init_inner(localization_folder: &str) -> Option<String> {
     })
 }
 
-byond!(init: localization_folder; {
-    match init_inner(localization_folder) {
+byond!(init: localization_folder, fallbacks; {
+    match init_inner(localization_folder, fallbacks) {
         Some(v) => v,
         None => ERROR_MESSAGE.into()
     }

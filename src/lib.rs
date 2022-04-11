@@ -8,7 +8,7 @@ use fluent::{FluentBundle, FluentResource};
 use localization_bundle::LocalizationBundles;
 use localization_resource::LocalizationResource;
 use localizeable_data::LocalizeableData;
-use log::{error, info};
+use log::{error, info, trace};
 
 mod localization_bundle;
 mod localization_resource;
@@ -21,7 +21,8 @@ thread_local! {
 }
 
 fn get_inner(json: &str) -> Option<String> {
-    info!("fn get: {json:#?}");
+    #[cfg(debug_assertions)]
+    trace!("fn get({}: \"{}\")", stringify!(json), json);
 
     WRAPPER.with(|wrapper| {
         let wrapper = wrapper.borrow();
@@ -35,8 +36,12 @@ fn get_inner(json: &str) -> Option<String> {
         let args = parsed.args();
         let result = bundle.format_pattern(value, args.as_ref(), &mut errors);
 
-        info!("result: {result}");
-        error!("errors: {errors:#?}");
+        #[cfg(debug_assertions)]
+        trace!("fn get(...) -> {result}");
+
+        if !errors.is_empty() {
+            error!("errors: {errors:#?}");
+        }
 
         Some(result.to_string())
     })
@@ -66,6 +71,15 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
 
         error!("{bt:?}")
     }));
+
+    #[cfg(debug_assertions)]
+    trace!(
+        "fn init({}: \"{}\", {}: \"{}\")",
+        stringify!(localization_folder),
+        localization_folder,
+        stringify!(fallbacks),
+        fallbacks
+    );
 
     WRAPPER.with(|wrapper| {
         let mut wrapper = wrapper.borrow_mut();

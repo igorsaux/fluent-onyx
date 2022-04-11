@@ -8,42 +8,55 @@ use flexi_logger::{FileSpec, Logger, WriteMode};
 use byond::byond;
 use fluent::{FluentBundle, FluentResource};
 use localization_resource::LocalizationResource;
-use localize_data::LocalizeData;
+use localizeable_data::LocalizeableData;
 use log::{error, info};
 
 mod localization_resource;
-mod localize_data;
+mod localizeable_data;
+
+const ERROR_MESSAGE: &str = "NO TRANSLATION";
 
 thread_local! {
     pub static FLUENT_BUNDLES: RefCell<BTreeMap<String, FluentBundle<FluentResource>>> = RefCell::new(BTreeMap::new());
 }
 
-byond!(get: json; {
+fn get_inner(json: &str) -> Option<String> {
     info!("fn get: {json:#?}");
 
     FLUENT_BUNDLES.with(|bundles| {
         let bundles = bundles.borrow();
-        let parsed = LocalizeData::from_str(json);
 
-        let bundle = bundles.get(&parsed.code).unwrap();
-        let message = bundle.get_message(&parsed.id).unwrap();
+        let parsed = LocalizeableData::from_str(json).ok()?;
+        let bundle = bundles.get(&parsed.code)?;
+        let message = bundle.get_message(&parsed.id)?;
+        let value = message.value()?;
+
         let mut errors = Vec::new();
         let args = parsed.args();
-        let result = bundle.format_pattern(message.value().unwrap(), args.as_ref(), &mut errors);
+        let result = bundle.format_pattern(value, args.as_ref(), &mut errors);
 
         info!("result: {result}");
         error!("errors: {errors:#?}");
 
-        result.to_string()
+        Some(result.to_string())
     })
+}
+
+byond!(get: json; {
+    match get_inner(json) {
+        Some(v) => v,
+        None => ERROR_MESSAGE.into()
+    }
 });
 
-byond!(init: localization_folder; {
+fn init_inner(localization_folder: &str) -> Option<String> {
     #[cfg(debug_assertions)]
-    let _logger = Logger::try_with_str("trace, fluent-onyx=trace").unwrap()
+    let _logger = Logger::try_with_str("trace, fluent-onyx=trace")
+        .ok()?
         .log_to_file(FileSpec::default().basename("fluent_onyx"))
         .write_mode(WriteMode::BufferAndFlush)
-        .start().unwrap();
+        .start()
+        .ok()?;
 
     #[cfg(debug_assertions)]
     panic::set_hook(Box::new(|_| {
@@ -57,27 +70,33 @@ byond!(init: localization_folder; {
     FLUENT_BUNDLES.with(|bundles| {
         let mut bundles = bundles.borrow_mut();
 
-        let entries = std::fs::read_dir(localization_folder).unwrap();
+        let entries = std::fs::read_dir(localization_folder).ok()?;
 
         for entry in entries {
-            let entry = entry.unwrap();
+            let entry = entry.ok()?;
+            let bundle = LocalizationResource::from_dir_entry(&entry)?;
 
-            let bundle = match LocalizationResource::from_dir_entry(&entry) {
-                None => continue,
-                Some(v) => v,
-            };
-
-
-            info!("Loaded bundle: [{}]: \"{}\"", bundle.code(), bundle.path().display());
+            info!(
+                "Loaded bundle: [{}]: \"{}\"",
+                bundle.code(),
+                bundle.path().display()
+            );
 
             let code = bundle.code().to_owned();
-            let mut bundle: FluentBundle<FluentResource> = bundle.into();
+            let mut bundle: FluentBundle<FluentResource> = bundle.try_into().ok()?;
 
             bundle.set_use_isolating(false);
 
             bundles.insert(code, bundle);
         }
-    });
 
-    "1"
+        Some("".to_string())
+    })
+}
+
+byond!(init: localization_folder; {
+    match init_inner(localization_folder) {
+        Some(v) => v,
+        None => ERROR_MESSAGE.into()
+    }
 });

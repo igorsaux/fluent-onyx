@@ -5,6 +5,13 @@ use std::{
 };
 
 use fluent::{FluentBundle, FluentResource};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum LocalizationResourceError {
+    #[error("{0}")]
+    Generic(#[from] anyhow::Error),
+}
 
 pub struct LocalizationResource {
     file_path: PathBuf,
@@ -52,13 +59,21 @@ impl LocalizationResource {
     }
 }
 
-impl From<LocalizationResource> for FluentBundle<FluentResource> {
-    fn from(val: LocalizationResource) -> Self {
-        let resource = FluentResource::try_new(val.content).unwrap();
-        let mut bundle = FluentBundle::new(vec![val.code.parse().unwrap()]);
+impl TryFrom<LocalizationResource> for FluentBundle<FluentResource> {
+    type Error = LocalizationResourceError;
 
-        bundle.add_resource(resource).unwrap();
+    fn try_from(val: LocalizationResource) -> Result<Self, Self::Error> {
+        let resource = FluentResource::try_new(val.content)
+            .map_err(|_| anyhow::anyhow!("FluentResource error"))?;
+        let mut bundle = FluentBundle::new(vec![val
+            .code
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Parse error"))?]);
 
         bundle
+            .add_resource(resource)
+            .map_err(|_| anyhow::anyhow!("FluentBundle error"))?;
+
+        Ok(bundle)
     }
 }

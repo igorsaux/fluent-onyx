@@ -53,7 +53,11 @@ fn init_inner(localization_folder: &str) -> Option<String> {
     #[cfg(debug_assertions)]
     let _logger = Logger::try_with_str("trace, fluent-onyx=trace")
         .ok()?
-        .log_to_file(FileSpec::default().basename("fluent_onyx"))
+        .log_to_file(
+            FileSpec::default()
+                .directory("data/logs/")
+                .basename("fluent_onyx"),
+        )
         .write_mode(WriteMode::BufferAndFlush)
         .start()
         .ok()?;

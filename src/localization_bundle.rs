@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use fluent::{FluentBundle, FluentResource};
+use fluent::{FluentBundle, FluentMessage, FluentResource};
+use log::{error, info};
+
+use crate::localizeable_data::LocalizeableData;
 
 type Bundles = BTreeMap<String, FluentBundle<FluentResource>>;
 type FallbacksTable = BTreeMap<String, String>;
@@ -32,15 +35,62 @@ impl LocalizationBundles {
         self.fallbacks_table = Some(fallbacks);
     }
 
-    pub fn resolve_bundle(&self, code: &str) -> Option<&FluentBundle<FluentResource>> {
-        match self.bundles.get(code) {
+    fn format_message(
+        &self,
+        bundle: &FluentBundle<FluentResource>,
+        message: &FluentMessage,
+        data: &LocalizeableData,
+    ) -> String {
+        let value = message.value().expect("Can't get FluentMessage's value");
+        let args = data.parse_args();
+        let mut errors = Vec::new();
+
+        let message = bundle.format_pattern(value, args.as_ref(), &mut errors);
+
+        if !errors.is_empty() {
+            error!("{errors:#?}");
+        };
+
+        message.to_string()
+    }
+
+    pub fn resolve_message(&self, data: LocalizeableData) -> Option<String> {
+        let bundle = self.resolve_bundle(&data.code)?;
+
+        let message = match bundle.get_message(&data.id) {
             None => {
-                let fallbacks = match &self.fallbacks_table {
+                let table = match &self.fallbacks_table {
                     None => return None,
                     Some(v) => v,
                 };
 
-                return match fallbacks.get(code) {
+                let new_code = match table.get(&data.code) {
+                    None => return None,
+                    Some(v) => v,
+                };
+
+                let data = LocalizeableData {
+                    code: new_code.to_owned(),
+                    ..data
+                };
+
+                self.resolve_message(data)
+            }
+            Some(v) => Some(self.format_message(bundle, &v, &data)),
+        };
+
+        message
+    }
+
+    pub fn resolve_bundle(&self, code: &str) -> Option<&FluentBundle<FluentResource>> {
+        match self.bundles.get(code) {
+            None => {
+                let table = match &self.fallbacks_table {
+                    None => return None,
+                    Some(v) => v,
+                };
+
+                return match table.get(code) {
                     None => None,
                     Some(v) => self.resolve_bundle(v),
                 };

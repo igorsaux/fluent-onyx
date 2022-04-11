@@ -15,7 +15,7 @@ pub enum LocalizeableDataError {
 pub struct LocalizeableData {
     pub id: String,
     pub code: String,
-    args: Option<BTreeMap<String, serde_json::Value>>,
+    pub args: Option<BTreeMap<String, serde_json::Value>>,
 }
 
 impl LocalizeableData {
@@ -23,7 +23,7 @@ impl LocalizeableData {
         serde_json::from_str(string).map_err(LocalizeableDataError::Parse)
     }
 
-    pub fn args(&self) -> Option<FluentArgs> {
+    pub fn parse_args(&self) -> Option<FluentArgs> {
         let args = self.args.as_ref()?;
         let mut result = FluentArgs::new();
 

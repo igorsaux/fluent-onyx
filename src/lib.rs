@@ -14,7 +14,8 @@ mod localization_bundle;
 mod localization_resource;
 mod localizeable_data;
 
-const ERROR_MESSAGE: &str = "NO TRANSLATION";
+const NO_TRANSLATION: &str = "NO TRANSLATION";
+const ERROR_MESSAGE: &str = "Something is going wrong. Check logs.";
 
 thread_local! {
     pub static WRAPPER: RefCell<LocalizationBundles> = RefCell::new(LocalizationBundles::new());
@@ -28,30 +29,28 @@ fn get_inner(json: &str) -> Option<String> {
         let wrapper = wrapper.borrow();
 
         let parsed = LocalizeableData::from_str(json).ok()?;
-        let bundle = wrapper.resolve_bundle(&parsed.code)?;
-        let message = bundle.get_message(&parsed.id)?;
-        let value = message.value()?;
-
-        let mut errors = Vec::new();
-        let args = parsed.args();
-        let result = bundle.format_pattern(value, args.as_ref(), &mut errors);
+        let result = wrapper.resolve_message(parsed)?;
 
         #[cfg(debug_assertions)]
         trace!("fn get(...) -> {result}");
 
-        if !errors.is_empty() {
-            error!("errors: {errors:#?}");
-        }
-
-        Some(result.to_string())
+        Some(result)
     })
 }
 
 byond!(get: json; {
-    match get_inner(json) {
-        Some(v) => v,
-        None => ERROR_MESSAGE.into()
+    let got_error = panic::catch_unwind(|| {
+        get_inner(json)
+    });
+
+    match got_error {
+        Ok(message) => match message {
+            None => NO_TRANSLATION.to_string(),
+            Some(v) => v
+        },
+        Err(_) => ERROR_MESSAGE.to_string()
     }
+
 });
 
 fn init_inner(localization_folder: &str, fallbacks: &str) {
@@ -126,6 +125,6 @@ byond!(init: localization_folder, fallbacks; {
 
     match got_error {
         Ok(()) => "".to_string(),
-        Err(_) => "Something is going wrong. Check logs for information.".to_string()
+        Err(_) => ERROR_MESSAGE.to_string()
     }
 });

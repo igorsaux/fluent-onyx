@@ -10,6 +10,7 @@ use localization_resource::LocalizationResource;
 use localizeable_data::LocalizeableData;
 use log::{error, info, trace};
 
+mod functions;
 mod localization_bundle;
 mod localization_resource;
 mod localizeable_data;
@@ -89,8 +90,6 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
 
         wrapper.set_fallbacks(fallbacks);
 
-        let bundles = wrapper.bundles_mut();
-
         let entries = std::fs::read_dir(localization_folder).unwrap();
 
         for entry in entries {
@@ -111,7 +110,7 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
 
             bundle.set_use_isolating(false);
 
-            bundles.insert(code, bundle);
+            wrapper.add_bundle(code, bundle);
         }
 
         info!("Initialized");

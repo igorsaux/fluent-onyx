@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use fluent::{FluentBundle, FluentMessage, FluentResource};
-use log::{error, info};
+use log::error;
 
-use crate::localizeable_data::LocalizeableData;
+use crate::{functions, localizeable_data::LocalizeableData};
 
 type Bundles = BTreeMap<String, FluentBundle<FluentResource>>;
 type FallbacksTable = BTreeMap<String, String>;
@@ -23,8 +23,12 @@ impl LocalizationBundles {
         &self.bundles
     }
 
-    pub fn bundles_mut(&mut self) -> &mut Bundles {
-        &mut self.bundles
+    pub fn add_bundle(&mut self, code: String, mut bundle: FluentBundle<FluentResource>) {
+        bundle
+            .add_function("PICK", functions::pick)
+            .expect("Can't add 'PICK' function");
+
+        self.bundles.insert(code, bundle);
     }
 
     pub fn fallbacks(&self) -> Option<&FallbacksTable> {

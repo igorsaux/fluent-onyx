@@ -46,7 +46,7 @@ impl LocalizationBundles {
         data: &LocalizeableData,
     ) -> String {
         let value = message.value().expect("Can't get FluentMessage's value");
-        let args = data.parse_args();
+        let args = data.parse_args(self);
         let mut errors = Vec::new();
 
         let message = bundle.format_pattern(value, args.as_ref(), &mut errors);

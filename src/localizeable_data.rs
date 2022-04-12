@@ -1,7 +1,10 @@
 use fluent::{FluentArgs, FluentValue};
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
+
+use crate::localization_bundle::LocalizationBundles;
 
 #[derive(Debug, Error)]
 pub enum LocalizeableDataError {
@@ -23,7 +26,7 @@ impl LocalizeableData {
         serde_json::from_str(string).map_err(LocalizeableDataError::Parse)
     }
 
-    pub fn parse_args(&self) -> Option<FluentArgs> {
+    pub fn parse_args(&self, bundles: &LocalizationBundles) -> Option<FluentArgs> {
         let args = self.args.as_ref()?;
         let mut result = FluentArgs::new();
 
@@ -35,7 +38,22 @@ impl LocalizeableData {
                     true => FluentValue::String("true".into()),
                     false => FluentValue::String("false".into()),
                 },
-                _ => continue,
+                o @ serde_json::Value::Object(_) => {
+                    match serde_json::from_value::<LocalizeableData>(o.to_owned()) {
+                        Err(e) => {
+                            error!("{e}");
+                            continue;
+                        }
+                        Ok(data) => match bundles.resolve_message(data.clone()) {
+                            None => FluentValue::String(data.code.into()),
+                            Some(v) => FluentValue::String(v.into()),
+                        },
+                    }
+                }
+                _ => {
+                    error!("Invalid argument in {self:#?}");
+                    continue;
+                }
             };
             result.set(key, value);
         }

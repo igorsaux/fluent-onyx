@@ -23,7 +23,6 @@ thread_local! {
 }
 
 fn get_inner(json: &str) -> Option<String> {
-    #[cfg(debug_assertions)]
     trace!("fn get({}: \"{}\")", stringify!(json), json);
 
     WRAPPER.with(|wrapper| {
@@ -32,7 +31,6 @@ fn get_inner(json: &str) -> Option<String> {
         let parsed = LocalizeableData::from_str(json).ok()?;
         let result = wrapper.resolve_message(parsed)?;
 
-        #[cfg(debug_assertions)]
         trace!("fn get(...) -> {result}");
 
         Some(result)
@@ -79,7 +77,6 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
         error!("{bt:?}")
     }));
 
-    #[cfg(debug_assertions)]
     trace!(
         "fn init({}: \"{}\", {}: \"{}\")",
         stringify!(localization_folder),

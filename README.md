@@ -26,7 +26,7 @@ $ rustup target add i686-unknown-linux-gnu
 $ cargo install cargo-make
 ```
 
-- Для компиляции в режиме `development` (без оптимизации, с некоторыми дополнительными логами):
+- Для компиляции в режиме `development` (без оптимизации):
 
 ```shell
 $ cargo make dev

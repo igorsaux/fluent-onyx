@@ -5,13 +5,13 @@ use flexi_logger::{FileSpec, Logger, WriteMode};
 
 use byond::byond;
 use fluent::{FluentBundle, FluentResource};
-use localization_bundle::LocalizationBundles;
+use localization_context::LocalizationContext;
 use localization_resource::LocalizationResource;
 use localizeable_data::LocalizeableData;
 use log::{error, info, trace};
 
 mod functions;
-mod localization_bundle;
+mod localization_context;
 mod localization_resource;
 mod localizeable_data;
 mod test_utils;
@@ -20,17 +20,17 @@ const NO_TRANSLATION: &str = "NO TRANSLATION";
 const ERROR_MESSAGE: &str = "Something is going wrong. Check logs.";
 
 thread_local! {
-    pub static WRAPPER: RefCell<LocalizationBundles> = RefCell::new(LocalizationBundles::new());
+    pub static CONTEXT: RefCell<LocalizationContext> = RefCell::new(LocalizationContext::new());
 }
 
 fn get_inner(json: &str) -> Option<String> {
     trace!("fn get({}: \"{}\")", stringify!(json), json);
 
-    WRAPPER.with(|wrapper| {
-        let wrapper = wrapper.borrow();
+    CONTEXT.with(|context| {
+        let context = context.borrow();
 
         let parsed = LocalizeableData::from_str(json).ok()?;
-        let result = wrapper.resolve_message(parsed)?;
+        let result = context.resolve_message(parsed)?;
 
         trace!("fn get(...) -> {result}");
 
@@ -86,14 +86,14 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
         fallbacks
     );
 
-    WRAPPER.with(|wrapper| {
-        let mut wrapper = wrapper.borrow_mut();
+    CONTEXT.with(|context| {
+        let mut context = context.borrow_mut();
 
         let fallbacks = serde_json::from_str(fallbacks).unwrap();
 
         info!("Fallbacks: {fallbacks:#?}");
 
-        wrapper.set_fallbacks(fallbacks);
+        context.set_fallbacks(fallbacks);
 
         let entries = std::fs::read_dir(localization_folder).unwrap();
 
@@ -115,7 +115,7 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
 
             bundle.set_use_isolating(false);
 
-            wrapper.add_bundle(code, bundle);
+            context.add_bundle(code, bundle);
         }
 
         info!("Initialized");

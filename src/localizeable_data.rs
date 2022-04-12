@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
-use crate::localization_bundle::LocalizationBundles;
+use crate::localization_context::LocalizationContext;
 
 #[derive(Debug, Error)]
 pub enum LocalizeableDataError {
@@ -26,7 +26,7 @@ impl LocalizeableData {
         serde_json::from_str(string).map_err(LocalizeableDataError::Parse)
     }
 
-    pub fn parse_args(&self, bundles: &LocalizationBundles) -> Option<FluentArgs> {
+    pub fn parse_args(&self, bundles: &LocalizationContext) -> Option<FluentArgs> {
         let args = self.args.as_ref()?;
         let mut result = FluentArgs::new();
 

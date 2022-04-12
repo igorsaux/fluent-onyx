@@ -9,12 +9,12 @@ type Bundles = BTreeMap<String, FluentBundle<FluentResource>>;
 type FallbacksTable = BTreeMap<String, String>;
 
 #[derive(Default)]
-pub struct LocalizationBundles {
+pub struct LocalizationContext {
     bundles: Bundles,
     fallbacks_table: Option<FallbacksTable>,
 }
 
-impl LocalizationBundles {
+impl LocalizationContext {
     pub fn new() -> Self {
         Self::default()
     }

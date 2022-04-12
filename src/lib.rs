@@ -39,6 +39,13 @@ fn get_inner(json: &str) -> Option<String> {
     })
 }
 
+fn no_translation_log(data: &str) -> String {
+    let msg = format!("{NO_TRANSLATION}: {data}");
+    error!("{msg}");
+
+    msg
+}
+
 byond!(get: json; {
     let got_error = panic::catch_unwind(|| {
         get_inner(json)
@@ -46,8 +53,8 @@ byond!(get: json; {
 
     match got_error {
         Ok(message) => match message {
-            None => NO_TRANSLATION.to_string(),
-            Some(v) => v
+            None => no_translation_log(json),
+            Some(v) => if v.is_empty() { no_translation_log(json) } else { v }
         },
         Err(_) => ERROR_MESSAGE.to_string()
     }
@@ -59,7 +66,7 @@ fn init_inner(localization_folder: &str, fallbacks: &str) {
         .unwrap()
         .log_to_file(
             FileSpec::default()
-                .directory("data/logs/")
+                .directory("data/logs/fluent/")
                 .basename("fluent_onyx"),
         )
         .write_mode(WriteMode::BufferAndFlush)

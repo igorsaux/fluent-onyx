@@ -2,6 +2,7 @@ use fluent::{FluentArgs, FluentBundle, FluentError, FluentResource, FluentValue}
 use rand::prelude::SliceRandom;
 mod en;
 
+/// Случайно выбирает одно из значении.
 pub fn pick<'a>(positional: &[FluentValue<'a>], _named: &FluentArgs) -> FluentValue<'a> {
     let mut rng = rand::thread_rng();
 

@@ -15,6 +15,7 @@ pub fn pick<'a>(positional: &[FluentValue<'a>], _named: &FluentArgs) -> FluentVa
 pub fn add_functions(bundle: &mut FluentBundle<FluentResource>) -> Result<(), FluentError> {
     bundle.add_function("PICK", pick)?;
     bundle.add_function("THE", en::the)?;
+    bundle.add_function("A", en::a)?;
 
     Ok(())
 }
@@ -27,7 +28,7 @@ mod tests {
     #[test]
     fn test_pick() {
         let mut bundle = fast_bundle(
-            "ru",
+            "en",
             r#"
 foo = { PICK("one") }
 "#,

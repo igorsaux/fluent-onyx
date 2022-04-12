@@ -14,6 +14,7 @@ mod functions;
 mod localization_bundle;
 mod localization_resource;
 mod localizeable_data;
+mod test_utils;
 
 const NO_TRANSLATION: &str = "NO TRANSLATION";
 const ERROR_MESSAGE: &str = "Something is going wrong. Check logs.";

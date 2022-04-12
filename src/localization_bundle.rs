@@ -24,9 +24,7 @@ impl LocalizationBundles {
     }
 
     pub fn add_bundle(&mut self, code: String, mut bundle: FluentBundle<FluentResource>) {
-        bundle
-            .add_function("PICK", functions::pick)
-            .expect("Can't add 'PICK' function");
+        functions::add_functions(&mut bundle).expect("Can't add functions");
 
         self.bundles.insert(code, bundle);
     }
